@@ -269,5 +269,16 @@ def history():
     bookings = Booking.query.filter_by(user_id=session['user_id']).all()
     return render_template('booking_history.html', bookings=bookings)
 
+@app.route('/delete_spot/<int:spot_id>', methods=['GET','POST'])
+def delete_spot(spot_id):
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    spot = ParkingSpot.query.get_or_404(spot_id)
+    if spot.status == 'O':
+        flash('Cannot delete a spot with active bookings.', 'error')
+        return redirect(url_for('parking'))
+    db.session.delete(spot)
+    db.session.commit()
+    return redirect(url_for('parking'))
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True)  
