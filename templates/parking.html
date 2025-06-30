@@ -30,6 +30,21 @@
 
 <div class="container mt-4">
 
+  <!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="col-md-10 mx-auto">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show mt-3" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+
   <!-- Enhanced Search Bar with Dropdown -->
   <div class="mb-4">
     <div class="col-md-10 mx-auto">
@@ -85,6 +100,7 @@
                 data-bs-toggle="modal" 
                 data-bs-target="#spotModal{{ spot.id }}" 
                 title="View Spot {{ spot.spot_number }}">
+
                 <span>{{ spot.spot_number }}</span>
               </button>
               {% endfor %}
@@ -133,6 +149,8 @@
 
           {% if spot.status == 'A' %}
             <a href="/delete_spot/{{ spot.id }}" onclick="return confirm('Are you sure you want to delete this spot?')" class="btn btn-sm btn-danger">Delete Spot</a>
+          {% else %}
+            <button class="btn btn-sm btn-secondary" disabled>Occupied</button>
           {% endif %}
         </div>
       </div>

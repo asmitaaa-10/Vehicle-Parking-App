@@ -33,6 +33,8 @@
 <body>
     <div class="login-container">
         <h1 class="login-title">Login</h1>
+
+        
         <form action="/login" method="POST">
             <div class="mb-3">
                 <label for="username" class="form-label">Username</label>
@@ -42,6 +44,19 @@
                 <label for="password" class="form-label">Password</label>
                 <input type="password" class="form-control" id="password" name="password" required>
             </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+
             <div class="d-grid mb-3">
                 <button type="submit" class="btn btn-primary">Login</button>
             </div>
