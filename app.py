@@ -169,13 +169,10 @@ def parking():
     return render_template('parking.html', parkings=parkings, available_counts=available_counts)
 
 
-
 @app.route('/add_parking', methods=['GET', 'POST'])
 def add_parking():
     if 'username' not in session:
         return redirect(url_for('login'))
-    
-
     
     if request.method == 'POST':
         prime_location_name = request.form['prime_location_name']
@@ -235,44 +232,6 @@ def edit_parking(parking_id):
     return render_template('edit_parking.html', parking=parking)
 
 
-@app.route('/booking/<int:parking_id>', methods=['GET', 'POST'])
-def booking(parking_id):
-    if 'username' not in session:
-        return redirect(url_for('login'))
-
-    parking = Parking.query.get_or_404(parking_id)
-    user_id = session['user_id']
-
-    if request.method == 'POST':
-        vehicle_number = request.form['vehicle_number']
-        
-        # Find an available spot in this parking lot
-        available_spot = ParkingSpot.query.filter_by(parking_id=parking.id, status='A').first()
-        if not available_spot:
-            flash('No available spots for booking.', 'danger')
-            return redirect(url_for('user'))
-
-        # Mark spot as occupied
-        available_spot.status = 'O'
-        sentinel_time = datetime(1970, 1, 1, 0, 0, 0)
-
-        # Create booking
-        booking = Booking(
-            user_id=user_id,
-            vehicle_number=vehicle_number,
-            spot_id=available_spot.id,
-            start_time=datetime.now(),
-            end_time=sentinel_time,  # You might want to update this later
-            status='O',
-            parking_cost=parking.price
-        )
-        db.session.add(booking)
-        db.session.commit()
-
-        return redirect(url_for('user'))
-
-    return render_template('booking.html', spot_id=parking_id, user_id=user_id, parking=parking)
-
 
 @app.route('/delete_parking/<int:parking_id>', methods=['POST'])
 def delete_parking(parking_id):
@@ -310,6 +269,7 @@ def delete_spot(spot_id):
     db.session.delete(spot)
     db.session.commit()
     return redirect(url_for('parking'))
+
 @app.route('/release/<int:booking_id>', methods=['GET', 'POST'])
 def release(booking_id):
     if 'username' not in session:
@@ -392,10 +352,106 @@ def summary():
 
     return render_template('summary.html', bar_chart_url=bar_chart_url, pie_chart_url=pie_chart_url, lots=lots)
 
+import os
+import matplotlib.pyplot as plt
+from flask import render_template, session, redirect, url_for
+
+@app.route('/user_summary', methods=['GET'])
+def user_summary():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    username = session['username']
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return redirect(url_for('login'))
+
+    lots = Parking.query.order_by(Parking.prime_location_name).all()
+
+    lot_names = []
+    user_occupied_counts = []
+    other_spots_counts = []
+
+    for lot in lots:
+        lot_names.append(lot.prime_location_name)
+
+        total_spots_in_lot = lot.number_of_spots
+
+        user_occupied = 0
+
+        for spot in lot.spots:
+            for booking in spot.bookings:
+                if booking.user_id == user.id:
+                    user_occupied += 1
+                    break  # count each spot only once per user
+
+        other_spots = total_spots_in_lot - user_occupied
+
+        user_occupied_counts.append(user_occupied)
+        other_spots_counts.append(other_spots)
+
+    # Plot stacked bar chart: user occupied (red) over other spots (green)
+    plt.figure(figsize=(18, 9))  # bigger figure
+
+    x = range(len(lot_names))
+
+    plt.bar(x, other_spots_counts, color='#198754', label='Available or Occupied by Others')
+    plt.bar(x, user_occupied_counts, color='#dc3545', label='Your Occupied Spots', bottom=other_spots_counts)
+
+    plt.xticks(x, lot_names, rotation=0, ha='center', fontsize=14)
+    plt.ylabel('Number of Spots', fontsize=16)
+    plt.title('Your Occupied Spots vs Others by Parking Lot', fontsize=20)
+    plt.legend(fontsize=14)
+    plt.tick_params(axis='y', labelsize=14)
+    plt.tight_layout(pad=4)  # extra padding for labels
+
+    chart_folder = os.path.join('static', 'charts')
+    os.makedirs(chart_folder, exist_ok=True)
+    chart_path = os.path.join(chart_folder, 'user_parking_bar_chart.png')
+
+    plt.savefig(chart_path)
+    plt.close()
+
+    chart_url = url_for('static', filename='charts/user_parking_bar_chart.png')
+
+    return render_template('user_summary.html', user_parking_bar_chart_url=chart_url)
+
+
+
+
 @app.route('/logout')
 def logout():
     session.clear()
     return render_template('logout.html')
+
+@app.route('/search', methods=['GET'])
+def search():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    query = request.args.get('query', '').strip().lower()
+
+    if not query:
+        return redirect(url_for('parking'))
+
+    parkings = Parking.query.filter(
+        (Parking.prime_location_name.ilike(f"%{query}%")) |
+        (Parking.address.ilike(f"%{query}%")) |
+        (Parking.pin_code.ilike(f"%{query}%"))
+    ).all()
+
+    available_counts = {
+        parking.id: ParkingSpot.query.filter(
+            ParkingSpot.parking_id == parking.id,
+            ParkingSpot.status == 'A',
+            ParkingSpot.spot_number <= parking.number_of_spots
+        ).count()
+        for parking in parkings
+    }
+
+    no_results = len(parkings) == 0
+
+    return render_template('parking.html', parkings=parkings, available_counts=available_counts, query=query, no_results=no_results)
 
 if __name__ == '__main__':
     app.run(debug=True)  

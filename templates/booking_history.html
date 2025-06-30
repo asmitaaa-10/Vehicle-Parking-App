@@ -28,19 +28,19 @@
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
   <div class="container-fluid">
     <span class="navbar-brand mb-0 h5">Parking Lots</span>
     <div class="d-flex ms-auto">
       <ul class="navbar-nav me-2 mb-2 mb-lg-0">
         <li class="nav-item">
-          <a class="nav-link" href="/admin">Home</a>
+          <a class="nav-link" href="/user">Home</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/admin_user">Manage User</a>
+          <a class="nav-link" href="/">Summary</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/logout">Summary</a>
+            <a class="nav-link active" aria-current="page" href="/logout">Logout</a>
         </li>
       </ul>
     </div>
@@ -59,6 +59,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>Spot Number</th>
+                        <th>Parking Lot Name</th>
                         <th>Vehicle Number</th>
                         <th>Parking Time</th>
                         <th>Status</th>
@@ -69,6 +70,7 @@
                     {% for booking in recent_bookings %}
                     <tr>
                         <td>{{ booking.spot.spot_number }}</td>
+                        <td>{{ booking.spot.parking.prime_location_name }}</td>
                         <td>{{ booking.vehicle_number }}</td>
                         <td>{{ booking.start_time.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                         <td>

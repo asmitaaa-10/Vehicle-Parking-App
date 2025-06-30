@@ -43,32 +43,26 @@
 <body>
 
   <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-light bg-white">
-    <div class="container">
-      <a class="navbar-brand" href="#">🚗 Parking Lots</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
+  
 
-      <div class="collapse navbar-collapse" id="navbarSupportedContent">
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <li class="nav-item">
-            <a class="nav-link active" aria-current="page" href="/">Home</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link active" aria-current="page" href="{{ url_for('history') }}">Booking History</a>
-          </li>
-          <li class="nav-item">
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <div class="container-fluid">
+    <span class="navbar-brand mb-0 h5">Parking Lots</span>
+    <div class="d-flex ms-auto">
+      <ul class="navbar-nav me-2 mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link" href="/user">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/">Summary</a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link active" aria-current="page" href="/logout">Logout</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link active" aria-current="page" href="/summary">Summary</a>
-          </li>
-        </ul>
-      </div>
+        </li>
+      </ul>
     </div>
-    
-  </nav>
+  </div>
+</nav>
 
   <!-- Main Content -->
   <div class="container">
@@ -79,16 +73,18 @@
     </div>
 
     <!-- Search form -->
-    <div>
-      <form class="d-flex" role="search" action="/user" method="GET">
-        <input class="form-control me-2" type="search" placeholder="Search" name="query" value="{{ query or '' }}">
+    <div class="d-flex justify-content-center mb-4">
+      <form class="d-flex" role="search" action="/user" method="GET" style="max-width: 750px; width: 100%;">
+        <input class="form-control me-2" type="search" placeholder="Search" name="query" value="{{ query or '' }}" style="min-width: 0;">
         <button class="btn btn-outline-success" type="submit">Search</button>
       </form>
-      <br>
+
+      <a href="/user" class="btn btn-outline-secondary ms-2">Reset</a>
     </div>
 
+
     <!-- Parking lots listing -->
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+      <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
       {% if parkings %}
         {% for parking in parkings %}
         <div class="col">
@@ -98,17 +94,25 @@
               <p class="card-text text-muted mb-1">{{ parking.address }}, {{ parking.pin_code }}</p>
               <p class="card-text mb-1"><strong>Price : </strong> {{ parking.price }} Rs</p>
               <p class="card-text text-muted mb-3"><strong>Spots Available : </strong> {{ available_counts[parking.id] }}/{{ parking.number_of_spots }}</p>
+              {% if available_counts[parking.id] > 0 %}
               <a href="/booking/{{ parking.id }}" class="btn btn-primary mt-auto w-100">Book Now</a>
+              {% else %}
+              <button class="btn btn-secondary mt-auto w-100" disabled>Full</button>
+              {% endif %}
             </div>
           </div>
         </div>
         {% endfor %}
       {% else %}
-        <div class="col text-center">
-          <div class="alert alert-warning w-100" role="alert">
-            No parking lots found{% if query %} for "<strong>{{ query }}</strong>"{% endif %}.
-          </div>
-        </div>
+        <div class="d-flex justify-content-center align-items-center w-100" style="min-height: 200px;">
+  <div class="text-center">
+    <div class="alert alert-warning" role="alert">
+      No parking lots found{% if query %} for "<strong>{{ query }}</strong>"{% endif %}.
+    </div>
+    <a href="/user" class="btn btn-outline-primary btn-sm">Back to All Parking Lots</a>
+  </div>
+</div>
+
       {% endif %}
     </div>
   </div>
