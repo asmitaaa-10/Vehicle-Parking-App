@@ -19,10 +19,10 @@
     </button>
     <div class="collapse navbar-collapse" id="navbarAdmin">
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link fw-semibold" href="/admin">🏠 Home</a></li>
-        <li class="nav-item"><a class="nav-link fw-semibold" href="/admin_user">👥 Manage Users</a></li>
-        <li class="nav-item"><a class="nav-link fw-semibold" href="/summary">📊 Summary</a></li>
-        <li class="nav-item"><a class="nav-link fw-semibold" href="/logout">🚪 Logout</a></li>
+        <li class="nav-item"><a class="nav-link fw-semibold" href="/admin">Home</a></li>
+        <li class="nav-item"><a class="nav-link fw-semibold" href="/admin_user">Manage Users</a></li>
+        <li class="nav-item"><a class="nav-link fw-semibold" href="/summary">Summary</a></li>
+        <li class="nav-item"><a class="nav-link fw-semibold" href="/logout">Logout</a></li>
       </ul>
     </div>
   </div>
@@ -31,21 +31,20 @@
 <div class="container mt-4">
 
   <!-- Flash Messages -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    <div class="col-md-10 mx-auto">
-      {% for category, message in messages %}
-        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show mt-3" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-      {% endfor %}
-    </div>
-  {% endif %}
-{% endwith %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="col-md-10 mx-auto">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show mt-3" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
 
-
-  <!-- Enhanced Search Bar with Dropdown -->
+  <!-- Search Bar -->
   <div class="mb-4">
     <div class="col-md-10 mx-auto">
       <form class="row g-2 align-items-center" method="GET" action="/search">
@@ -66,7 +65,7 @@
     </div>
   </div>
 
-  <!-- Parking Lots Grid -->
+  <!-- Parking Grid -->
   <div class="row row-cols-1 row-cols-lg-3 g-4">
     {% if parkings|length == 0 %}
       <div class="d-flex justify-content-center align-items-center" style="height: 300px; width: 100%;">
@@ -85,26 +84,36 @@
             <div>
               <h5 class="card-title">{{ parking.prime_location_name }}</h5>
               <p class="card-text">{{ parking.address }}, {{ parking.pin_code }}</p>
-              <p class="text-muted">{{ available_counts[parking.id] }}/{{ parking.number_of_spots }} Spots Available</p>
+
+              {% set spot_map = dict() %}
+              {% for spot in parking.spots %}
+                {% if spot.spot_number not in spot_map %}
+                  {% set dummy = spot_map.update({spot.spot_number: spot.status}) %}
+                {% endif %}
+              {% endfor %}
+              {% set total_spots = spot_map | length %}
+              {% set available_spots = spot_map.values() | select('equalto', 'A') | list | length %}
+              <p class="text-muted">{{ available_spots }}/{{ total_spots }} Spots Available</p>
             </div>
+
             <div class="mb-2">
-              {% for spot in parking.spots if spot.spot_number <= parking.number_of_spots %}
+              {% for number, status in spot_map.items() %}
               <button 
                 type="button" 
                 class="btn btn-sm me-1 mb-1 
-                  {% if spot.status == 'O' %}
+                  {% if status == 'O' %}
                     btn-danger
                   {% else %}
                     btn-success
                   {% endif %}" 
                 data-bs-toggle="modal" 
-                data-bs-target="#spotModal{{ spot.id }}" 
-                title="View Spot {{ spot.spot_number }}">
-
-                <span>{{ spot.spot_number }}</span>
+                data-bs-target="#spotModal{{ number }}" 
+                title="View Spot {{ number }}">
+                <span>{{ number }}</span>
               </button>
               {% endfor %}
             </div>
+
             <div class="mt-auto d-flex justify-content-between">
               <a href="/edit_parking/{{ parking.id }}" class="btn btn-sm btn-warning">Edit</a>
               <form action="/delete_parking/{{ parking.id }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this parking lot?')">
@@ -118,7 +127,7 @@
     {% endif %}
   </div>
 
-  <!-- Add Parking Button -->
+  <!-- Add Parking -->
   <div class="text-center mt-5">
     <a href="/add_parking" class="btn btn-primary btn-lg">+ Add New Parking Lot</a>
   </div>
@@ -126,7 +135,7 @@
 
 <!-- Spot Modals -->
 {% for parking in parkings %}
-  {% for spot in parking.spots if spot.spot_number <= parking.number_of_spots %}
+  {% for spot in parking.spots %}
   <div class="modal fade" id="spotModal{{ spot.id }}" tabindex="-1" aria-labelledby="spotModalLabel{{ spot.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -139,7 +148,7 @@
           <p><strong>Status : </strong>{% if spot.status == 'A' %}Available{% else %}Occupied{% endif %}</p>
           <p><strong>Price : </strong>{{ parking.price }} Rs.</p>
           <p><strong>Parking Lot : </strong>{{ parking.prime_location_name }}</p>
-          
+
           {% if spot.status == 'O' and spot.bookings %}
             {% set latest_booking = (spot.bookings | sort(attribute='start_time'))[-1] %}
             <p><strong>Vehicle Number : </strong>{{ latest_booking.vehicle_number }}</p>

@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('Agg')  # Use a non-interactive backend for matplotlib
+matplotlib.use('Agg')
 
 def create_app():
     app = Flask(__name__)
@@ -107,6 +107,7 @@ def login():
             flash("Username and Password do not exist.", "danger")
             return redirect(url_for('login'))
     return render_template('login.html')
+
 
 @app.route('/register',methods=['GET','POST'])
 def register():
@@ -249,18 +250,31 @@ def edit_parking(parking_id):
             flash(f"Cannot set total spots less than currently occupied ({occupied_count}).", "danger")
             return render_template('edit_parking.html', parking=parking, occupied_count=occupied_count)
 
-        # Update fields
+        # Update parking fields
         parking.prime_location_name = prime_location_name
         parking.address = address
         parking.pin_code = pin_code
         parking.price = price
 
         current_total_spots = parking.number_of_spots
-        parking.number_of_spots = new_total_spots
-        db.session.commit()
 
-        # If spots increased, add new ParkingSpot rows
-        if new_total_spots > current_total_spots:
+        if new_total_spots < current_total_spots:
+            # Check if any extra spots (beyond new_total_spots) are occupied
+            extra_spots = ParkingSpot.query.filter(
+                ParkingSpot.parking_id == parking_id,
+                ParkingSpot.spot_number > new_total_spots
+            ).all()
+
+            if any(spot.status == 'O' for spot in extra_spots):
+                flash("Cannot reduce number of spots: some of the extra spots are occupied.", "danger")
+                return render_template('edit_parking.html', parking=parking, occupied_count=occupied_count)
+
+            # Delete all extra spots
+            for spot in extra_spots:
+                db.session.delete(spot)
+
+        elif new_total_spots > current_total_spots:
+            # Add new spots
             for spot_num in range(current_total_spots + 1, new_total_spots + 1):
                 new_spot = ParkingSpot(
                     parking_id=parking.id,
@@ -268,18 +282,18 @@ def edit_parking(parking_id):
                     status='A'
                 )
                 db.session.add(new_spot)
-            db.session.commit()
             flash(f"{new_total_spots - current_total_spots} new spot(s) added successfully.", "success")
         else:
             flash("Parking lot updated successfully.", "success")
 
-        return redirect(url_for('parking'))  # Change route if needed
+        parking.number_of_spots = new_total_spots
+        db.session.commit()
+
+        return redirect(url_for('parking'))
 
     # GET request
     occupied_count = ParkingSpot.query.filter_by(parking_id=parking_id, status='O').count()
     return render_template('edit_parking.html', parking=parking, occupied_count=occupied_count)
-
-
 
 
 @app.route('/delete_parking/<int:parking_id>', methods=['POST'])
@@ -367,16 +381,24 @@ def summary():
     occupied_counts = []
     revenue_by_lot = []
 
-    for lot in lots:
-        lot_names.append(lot.prime_location_name)
-        available_counts.append(ParkingSpot.query.filter_by(parking_id=lot.id, status='A').count())
-        occupied_counts.append(ParkingSpot.query.filter_by(parking_id=lot.id, status='O').count())
+    total_revenue = 0
 
-        total_revenue = 0
-        for spot in lot.spots:
-            for booking in spot.bookings:
-                total_revenue += booking.parking_cost or 0
-        revenue_by_lot.append(total_revenue)
+    for lot in lots:
+        occupied = ParkingSpot.query.filter_by(parking_id=lot.id, status='O').count()
+        total = lot.number_of_spots
+        available = total - occupied
+
+        lot_names.append(lot.prime_location_name)
+        occupied_counts.append(occupied)
+        available_counts.append(available)
+
+        revenue = occupied * lot.price
+        revenue_by_lot.append(revenue)
+        total_revenue += revenue
+
+        print(f"Revenue from {lot.prime_location_name}: ₹{revenue:.2f}")
+        
+
 
     # Bar chart
     plt.figure(figsize=(10, 6))
@@ -390,15 +412,32 @@ def summary():
     bar_chart_path = os.path.join(app.config['CHART_FOLDER'], 'bar_chart.png')
     plt.savefig(bar_chart_path)
     plt.close()
+    
 
-    # Pie chart
-    plt.figure(figsize=(10, 6))
-    plt.pie(revenue_by_lot, labels=lot_names, autopct='%1.1f%%')
-    plt.title('Revenue by Parking Lot')
-    plt.tight_layout()
-    pie_chart_path = os.path.join(app.config['CHART_FOLDER'], 'pie_chart.png')
-    plt.savefig(pie_chart_path)
-    plt.close()
+    
+    # Pie chart: Revenue Share from Each Parking Lot (only show lots with non-zero revenue)
+    non_zero_lots = [(name, rev) for name, rev in zip(lot_names, revenue_by_lot) if rev > 0]
+
+    if non_zero_lots:
+        filtered_names, filtered_revenue = zip(*non_zero_lots)
+
+        plt.figure(figsize=(10, 6))
+        plt.pie(
+            filtered_revenue,
+            labels=filtered_names,
+            autopct=lambda p: f'{p:.1f}%\n₹{p * sum(filtered_revenue) / 100:.0f}',
+            startangle=140,
+            
+        )
+        plt.title(f'Revenue Contribution by Parking Lot\nTotal Revenue: ₹{total_revenue}', fontsize=14)
+        plt.tight_layout()
+
+        pie_chart_path = os.path.join(app.config['CHART_FOLDER'], 'pie_chart.png')
+        plt.savefig(pie_chart_path)
+        plt.close()
+    else:
+        pie_chart_path = None
+
 
     bar_chart_url = url_for('static', filename='charts/bar_chart.png')
     pie_chart_url = url_for('static', filename='charts/pie_chart.png')
@@ -408,9 +447,6 @@ def summary():
 
     return render_template('summary.html', bar_chart_url=bar_chart_url, pie_chart_url=pie_chart_url, lots=lots)
 
-import os
-import matplotlib.pyplot as plt
-from flask import render_template, session, redirect, url_for
 
 @app.route('/user_summary', methods=['GET'])
 def user_summary():
