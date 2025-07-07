@@ -7,7 +7,7 @@ from sqlalchemy import func
 from datetime import datetime
 
 import matplotlib
-matplotlib.use('Agg')  # Use non-GUI backend before importing pyplot
+matplotlib.use('Agg')  
 import matplotlib.pyplot as plt
 
 
@@ -170,7 +170,7 @@ def add_parking():
                           pin_code=pin_code,
                           price=price, number_of_spots=number_of_spots)
         db.session.add(parking)
-        db.session.flush()  # flush to get parking.id before adding spots
+        db.session.flush()  
         for i in range(1, number_of_spots + 1):
             spot = ParkingSpot(parking_id=parking.id, spot_number=i, status='A')
             db.session.add(spot)
@@ -221,22 +221,19 @@ def booking(parking_id):
     if request.method == 'POST':
         vehicle_number = request.form['vehicle_number']
 
-        # Find available spot with status 'A' (Available), case insensitive check
         available_spot = ParkingSpot.query.filter(
             ParkingSpot.parking_id == parking.id,
             func.lower(ParkingSpot.status) == 'a'
         ).first()
 
-        print(f"Available spot found for booking: {available_spot}")  # Debug print
+        print(f"Available spot found for booking: {available_spot}")
 
         if not available_spot:
             flash('No available spots for booking.', 'danger')
             return redirect(url_for('user'))
 
-        # Mark spot as occupied
         available_spot.status = 'O'
 
-        # Create booking with end_time=None (no sentinel)
         booking = Booking(
             user_id=user_id,
             vehicle_number=vehicle_number,
@@ -276,16 +273,10 @@ def history():
 
     all_bookings = Booking.query.filter_by(user_id=session['user_id']).all()
 
-    # Fix: lowercase status comparison
     recent_bookings = [b for b in all_bookings if b.status.lower().strip() == 'o']
     past_bookings = [b for b in all_bookings if b.status.lower().strip() != 'o']
 
-    return render_template('booking_history.html',
-                           recent_bookings=recent_bookings,
-                           past_bookings=past_bookings)
-
-
-
+    return render_template('booking_history.html', recent_bookings=recent_bookings, past_bookings=past_bookings)
 
 @app.route('/delete_spot/<int:spot_id>', methods=['GET', 'POST'])
 def delete_spot(spot_id):
@@ -295,18 +286,15 @@ def delete_spot(spot_id):
     if spot.status == 'O':
         flash('Cannot delete a spot with active bookings.', 'error')
         return redirect(url_for('parking'))
-    parking = spot.parking  # get related parking lot
+    parking = spot.parking  
     db.session.delete(spot)
     db.session.commit()
 
-    # Update the total spots count after deleting the spot
     parking.number_of_spots = ParkingSpot.query.filter_by(parking_id=parking.id).count()
     db.session.commit()
 
     flash("Spot deleted successfully.", "success")
     return redirect(url_for('parking'))
-
-
 
 
 @app.route('/release/<int:booking_id>', methods=['GET', 'POST'])
@@ -316,17 +304,16 @@ def release(booking_id):
 
     booking = Booking.query.get_or_404(booking_id)
 
-    # Check if already released
     if booking.status != 'O' or booking.end_time is not None:
         flash('This spot has already been released.', 'warning')
         return redirect(url_for('history'))
 
     booking.end_time = datetime.now()
     duration = booking.end_time - booking.start_time
-    hours = max(1, int(duration.total_seconds() // 3600))  # minimum 1 hour charge
+    hours = max(1, int(duration.total_seconds() // 3600))  
     booking.parking_cost = hours * booking.spot.parking.price
     booking.status = 'Released'
-    booking.spot.status = 'A'  # mark spot as available again
+    booking.spot.status = 'A'  
 
     db.session.commit()
     flash('Parking spot is released!', 'success')
@@ -352,18 +339,15 @@ def summary():
 
     total_revenue = 0
 
-    # Calculate spots and revenue, build data lists for charts
     for lot in lots:
         total = ParkingSpot.query.filter_by(parking_id=lot.id).count()
         occupied = ParkingSpot.query.filter_by(parking_id=lot.id, status='O').count()
         available = total - occupied
 
-        # Add attributes for the template
         lot.total_spots = total
         lot.occupied_spots = occupied
         lot.available_spots = available
 
-        # Append data for charts
         lot_names.append(lot.prime_location_name)
         available_counts.append(available)
         occupied_counts.append(occupied)
@@ -374,7 +358,6 @@ def summary():
 
         print(f"Revenue from {lot.prime_location_name}: ₹{revenue:.2f}")
 
-    # Create bar chart (Available vs Occupied spots)
     plt.figure(figsize=(10, 6))
     plt.bar(x=lot_names, height=available_counts, color='green', label='Available Spots')
     plt.bar(x=lot_names, height=occupied_counts, color='red', label='Occupied Spots', bottom=available_counts)
@@ -388,7 +371,6 @@ def summary():
     plt.savefig(bar_chart_path)
     plt.close()
 
-    # Create pie chart for revenue (only for lots with revenue > 0)
     non_zero_lots = [(name, rev) for name, rev in zip(lot_names, revenue_by_lot) if rev > 0]
 
     if non_zero_lots:
@@ -458,7 +440,7 @@ def user_summary():
                     booking.status.lower().strip() == 'o'
                 ):
                     user_occupied += 1
-                    break  # count only one active booking per spot
+                    break  
 
 
         other_spots = total_spots_in_lot - user_occupied
@@ -466,12 +448,9 @@ def user_summary():
         user_occupied_counts.append(user_occupied)
         other_spots_counts.append(other_spots)
 
-    # Plot stacked bar chart: user occupied (red) over other spots (green)
-    plt.figure(figsize=(18, 9))  # bigger figure
+    plt.figure(figsize=(18, 9)) 
 
     x = range(len(lot_names))
-
-
 
     plt.bar(x, user_occupied_counts, color='#dc3545', label='Your Occupied Spots')
     plt.bar(x, other_spots_counts, color='#198754', label='Available or Occupied by Others', bottom=user_occupied_counts)
@@ -482,7 +461,7 @@ def user_summary():
     plt.title('Your Occupied Spots vs Others by Parking Lot', fontsize=20)
     plt.legend(fontsize=14)
     plt.tick_params(axis='y', labelsize=14)
-    plt.tight_layout(pad=4)  # extra padding for labels
+    plt.tight_layout(pad=4) 
 
     chart_folder = os.path.join('static', 'charts')
     os.makedirs(chart_folder, exist_ok=True)
