@@ -226,7 +226,7 @@ def booking(parking_id):
             func.lower(ParkingSpot.status) == 'a'
         ).first()
 
-        print(f"Available spot found for booking: {available_spot}")
+        print(f"Available spot found for booking: {available_spot}")  
 
         if not available_spot:
             flash('No available spots for booking.', 'danger')
@@ -276,7 +276,10 @@ def history():
     recent_bookings = [b for b in all_bookings if b.status.lower().strip() == 'o']
     past_bookings = [b for b in all_bookings if b.status.lower().strip() != 'o']
 
-    return render_template('booking_history.html', recent_bookings=recent_bookings, past_bookings=past_bookings)
+    return render_template('booking_history.html',
+                           recent_bookings=recent_bookings,
+                           past_bookings=past_bookings)
+
 
 @app.route('/delete_spot/<int:spot_id>', methods=['GET', 'POST'])
 def delete_spot(spot_id):
@@ -297,6 +300,8 @@ def delete_spot(spot_id):
     return redirect(url_for('parking'))
 
 
+
+
 @app.route('/release/<int:booking_id>', methods=['GET', 'POST'])
 def release(booking_id):
     if 'username' not in session:
@@ -310,7 +315,7 @@ def release(booking_id):
 
     booking.end_time = datetime.now()
     duration = booking.end_time - booking.start_time
-    hours = max(1, int(duration.total_seconds() // 3600))  
+    hours = max(1, int(duration.total_seconds() // 3600)) 
     booking.parking_cost = hours * booking.spot.parking.price
     booking.status = 'Released'
     booking.spot.status = 'A'  
@@ -448,9 +453,11 @@ def user_summary():
         user_occupied_counts.append(user_occupied)
         other_spots_counts.append(other_spots)
 
-    plt.figure(figsize=(18, 9)) 
+    plt.figure(figsize=(18, 9))  
 
     x = range(len(lot_names))
+
+
 
     plt.bar(x, user_occupied_counts, color='#dc3545', label='Your Occupied Spots')
     plt.bar(x, other_spots_counts, color='#198754', label='Available or Occupied by Others', bottom=user_occupied_counts)
@@ -461,7 +468,7 @@ def user_summary():
     plt.title('Your Occupied Spots vs Others by Parking Lot', fontsize=20)
     plt.legend(fontsize=14)
     plt.tick_params(axis='y', labelsize=14)
-    plt.tight_layout(pad=4) 
+    plt.tight_layout(pad=4)  
 
     chart_folder = os.path.join('static', 'charts')
     os.makedirs(chart_folder, exist_ok=True)
