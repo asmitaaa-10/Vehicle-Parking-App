@@ -3,10 +3,13 @@ from flask_sqlalchemy import SQLAlchemy
 from flask import session
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
+from sqlalchemy import func
 from datetime import datetime
-import matplotlib.pyplot as plt
+
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg')  # Use non-GUI backend before importing pyplot
+import matplotlib.pyplot as plt
+
 
 def create_app():
     app = Flask(__name__)
@@ -14,10 +17,9 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///parking.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['CHART_FOLDER'] = os.path.join(os.getcwd(), 'static', 'charts')
-    os.makedirs(app.config['CHART_FOLDER'],exist_ok=True)
+    os.makedirs(app.config['CHART_FOLDER'], exist_ok=True)
     app.config['PASSWORD_HASH'] = 'app123'
     db.init_app(app)
-
     return app
 
 db = SQLAlchemy()
@@ -30,8 +32,7 @@ class User(db.Model):
     fullname = db.Column(db.String(20), nullable=False)
     address = db.Column(db.String(20), nullable=False)
     pincode = db.Column(db.String(20), nullable=False)
-
-    bookings = db.relationship('Booking', back_populates='user',cascade='all, delete-orphan')
+    bookings = db.relationship('Booking', back_populates='user', cascade='all, delete-orphan')
 
 class Parking(db.Model):
     __tablename__ = 'parking'
@@ -41,18 +42,16 @@ class Parking(db.Model):
     pin_code = db.Column(db.String(20), nullable=False)
     price = db.Column(db.Float, nullable=False)
     number_of_spots = db.Column(db.Integer, nullable=False)
-
-    spots = db.relationship('ParkingSpot', back_populates='parking',cascade='all, delete-orphan')
+    spots = db.relationship('ParkingSpot', back_populates='parking', cascade='all, delete-orphan')
 
 class ParkingSpot(db.Model):
     __tablename__ = 'parking_spot'
     id = db.Column(db.Integer, primary_key=True)
     parking_id = db.Column(db.Integer, db.ForeignKey('parking.id'), nullable=False)
     spot_number = db.Column(db.Integer, nullable=False)
-    status = db.Column(db.String(20), nullable=False,default='A')
-
+    status = db.Column(db.String(20), nullable=False, default='A')
     parking = db.relationship('Parking', back_populates='spots')
-    bookings = db.relationship('Booking', back_populates='spot',cascade='all, delete-orphan')
+    bookings = db.relationship('Booking', back_populates='spot', cascade='all, delete-orphan')
 
 class Booking(db.Model):
     __tablename__ = 'booking'
@@ -62,20 +61,20 @@ class Booking(db.Model):
     vehicle_number = db.Column(db.String(20), nullable=False)
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=True)
-    status = db.Column(db.String(20), nullable=False,default='O')
+    status = db.Column(db.String(20), nullable=False, default='O')
     parking_cost = db.Column(db.Float, nullable=False)
-
     user = db.relationship('User', back_populates='bookings')
-    spot  = db.relationship('ParkingSpot', back_populates='bookings')
+    spot = db.relationship('ParkingSpot', back_populates='bookings')
 
 def create_admin():
     admin = User.query.filter_by(username='admin').first()
-    if not admin :
-        admin = User(username='admin', fullname='Admin', address='Admin123', pincode='123456',password=generate_password_hash('app123'))
+    if not admin:
+        admin = User(username='admin', fullname='Admin', address='Admin123', pincode='123456',
+                     password=generate_password_hash('app123'))
         db.session.add(admin)
         db.session.commit()
 
-app=create_app()
+app = create_app()
 app.app_context().push()
 with app.app_context():
     db.create_all()
@@ -85,31 +84,28 @@ with app.app_context():
 def index():
     return render_template('index.html')
 
-@app.route('/login',methods=['GET','POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        print(username, password)
         user = User.query.filter_by(username=username).first()
-        if user :
+        if user:
             if not check_password_hash(user.password, password):
-                flash("Username and Password do not exist.", "danger")
+                flash("Invalid password.", "danger")
                 return redirect(url_for('login'))
-            if user.username == 'admin' :
-                session['username'] = username
+            session['username'] = username
+            if user.username == 'admin':
                 return redirect(url_for('admin'))
-            else :
-                session['username'] = username
+            else:
                 session['user_id'] = user.id
                 return redirect(url_for('user'))
-        else :
-            flash("Username and Password do not exist.", "danger")
+        else:
+            flash("User not found.", "danger")
             return redirect(url_for('login'))
     return render_template('login.html')
 
-
-@app.route('/register',methods=['GET','POST'])
+@app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         username = request.form['username']
@@ -117,12 +113,15 @@ def register():
         fullname = request.form['fullname']
         address = request.form['address']
         pincode = request.form['pincode']
-        user = User(username=username, password=generate_password_hash(password), fullname=fullname, address=address, pincode=pincode)
+        user = User(username=username, password=generate_password_hash(password), fullname=fullname, address=address,
+                    pincode=pincode)
         db.session.add(user)
         db.session.commit()
+        flash("Registration successful! Please login.", "success")
         return redirect(url_for('login'))
-    return render_template('signup.html') 
-@app.route('/admin',methods=['GET','POST'])
+    return render_template('signup.html')
+
+@app.route('/admin', methods=['GET', 'POST'])
 def admin():
     if 'username' not in session:
         return redirect(url_for('login'))
@@ -133,7 +132,7 @@ def user():
     if 'username' not in session:
         return redirect(url_for('login'))
 
-    query = request.args.get('query')  # get search query from URL params
+    query = request.args.get('query')
 
     if query:
         parkings = Parking.query.filter(Parking.prime_location_name.ilike(f'%{query}%')).all()
@@ -142,13 +141,74 @@ def user():
 
     available_counts = {}
     for parking in parkings:
-        available_counts[parking.id] = ParkingSpot.query.filter(
-            ParkingSpot.parking_id == parking.id,
-            ParkingSpot.status == 'A',
-            ParkingSpot.spot_number <= parking.number_of_spots
-        ).count()
+        available_counts[parking.id] = ParkingSpot.query.filter_by(parking_id=parking.id, status='A').count()
 
     return render_template('user.html', parkings=parkings, available_counts=available_counts, query=query)
+
+@app.route('/parking', methods=['GET', 'POST'])
+def parking():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    parkings = Parking.query.all()
+    available_counts = {}
+    for parking in parkings:
+        available_counts[parking.id] = ParkingSpot.query.filter_by(parking_id=parking.id, status='A').count()
+    return render_template('parking.html', parkings=parkings, available_counts=available_counts)
+
+@app.route('/add_parking', methods=['GET', 'POST'])
+def add_parking():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    if request.method == 'POST':
+        prime_location_name = request.form['prime_location_name']
+        address = request.form['address']
+        pin_code = request.form['pin_code']
+        price = float(request.form['price'])
+        number_of_spots = int(request.form['number_of_spots'])
+        parking = Parking(prime_location_name=prime_location_name,
+                          address=address,
+                          pin_code=pin_code,
+                          price=price, number_of_spots=number_of_spots)
+        db.session.add(parking)
+        db.session.flush()  # flush to get parking.id before adding spots
+        for i in range(1, number_of_spots + 1):
+            spot = ParkingSpot(parking_id=parking.id, spot_number=i, status='A')
+            db.session.add(spot)
+        db.session.commit()
+        flash("Parking added successfully.", "success")
+        return redirect(url_for('parking'))
+    return render_template('add_parking.html')
+
+@app.route('/edit_parking/<int:parking_id>', methods=['GET', 'POST'])
+def edit_parking(parking_id):
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    parking = Parking.query.get_or_404(parking_id)
+    if request.method == 'POST':
+        parking.prime_location_name = request.form['prime_location_name']
+        parking.address = request.form['address']
+        parking.pin_code = request.form['pin_code']
+        parking.price = float(request.form['price'])
+        new_spot_count = int(request.form['number_of_spots'])
+
+        current_spots = {spot.spot_number: spot for spot in parking.spots}
+
+        for i in range(1, new_spot_count + 1):
+            if i not in current_spots:
+                spot = ParkingSpot(parking_id=parking.id, spot_number=i, status='A')
+                db.session.add(spot)
+
+        for i in range(new_spot_count + 1, len(current_spots) + 1):
+            spot = current_spots.get(i)
+            if spot:
+                has_history = Booking.query.filter_by(spot_id=spot.id).first()
+                if spot.status == 'A' and not has_history:
+                    db.session.delete(spot)
+        parking.number_of_spots = new_spot_count
+        db.session.commit()
+        flash("Parking Lot has been updated successfully.", "success")
+        return redirect(url_for('parking'))
+    return render_template('edit_parking.html', parking=parking)
 
 @app.route('/booking/<int:parking_id>', methods=['GET', 'POST'])
 def booking(parking_id):
@@ -156,145 +216,42 @@ def booking(parking_id):
         return redirect(url_for('login'))
 
     parking = Parking.query.get_or_404(parking_id)
-    user = User.query.filter_by(username=session['username']).first()
+    user_id = session['user_id']
 
     if request.method == 'POST':
         vehicle_number = request.form['vehicle_number']
 
-        # Find the first available spot
-        available_spot = ParkingSpot.query.filter_by(parking_id=parking_id, status='A').first()
+        # Find available spot with status 'A' (Available), case insensitive check
+        available_spot = ParkingSpot.query.filter(
+            ParkingSpot.parking_id == parking.id,
+            func.lower(ParkingSpot.status) == 'a'
+        ).first()
+
+        print(f"Available spot found for booking: {available_spot}")  # Debug print
+
         if not available_spot:
-            flash('No available spots', 'error')
+            flash('No available spots for booking.', 'danger')
             return redirect(url_for('user'))
 
-        # Create a booking
-        new_booking = Booking(
-            user_id=user.id,
-            spot_id=available_spot.id,
+        # Mark spot as occupied
+        available_spot.status = 'O'
+
+        # Create booking with end_time=None (no sentinel)
+        booking = Booking(
+            user_id=user_id,
             vehicle_number=vehicle_number,
+            spot_id=available_spot.id,
             start_time=datetime.now(),
+            end_time=None,
             status='O',
             parking_cost=parking.price
         )
-        available_spot.status = 'O'
-        db.session.add(new_booking)
+        db.session.add(booking)
         db.session.commit()
-
-        flash('Booking successful!', 'success')
+        flash('Spot booked successfully!', 'success')
         return redirect(url_for('user'))
 
-    return render_template('booking.html', parking=parking, user_id=user.id)
-
-
-
-@app.route('/parking', methods=['GET', 'POST'])
-def parking():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-
-    parkings = Parking.query.all()
-    available_counts = {}
-
-    for parking in parkings:
-        valid_spots = ParkingSpot.query.filter(
-            ParkingSpot.parking_id == parking.id,
-            ParkingSpot.status == 'A',
-            ParkingSpot.spot_number <= parking.number_of_spots
-        ).all()
-        available_counts[parking.id] = len(valid_spots)
-
-    return render_template('parking.html', parkings=parkings, available_counts=available_counts)
-
-
-@app.route('/add_parking', methods=['GET', 'POST'])
-def add_parking():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-    
-    if request.method == 'POST':
-        prime_location_name = request.form['prime_location_name']
-        address = request.form['address']
-        pin_code = request.form['pin_code']
-        price = request.form['price']
-        number_of_spots = int(request.form['number_of_spots'])
-        parking = Parking(prime_location_name=prime_location_name,
-                          address=address,
-                          pin_code=pin_code,
-                          price=price, number_of_spots=number_of_spots)
-        db.session.add(parking)
-        db.session.flush()
-        for i in range(1, number_of_spots + 1):
-            spot = ParkingSpot(parking_id=parking.id, spot_number=i, status='A')
-            db.session.add(spot)
-        db.session.commit()
-        return redirect(url_for('parking'))
-    return render_template('add_parking.html')
-
-
-
-@app.route('/edit_parking/<int:parking_id>', methods=['GET', 'POST'])
-def edit_parking(parking_id):
-    parking = Parking.query.get_or_404(parking_id)
-
-    if request.method == 'POST':
-        prime_location_name = request.form['prime_location_name']
-        address = request.form['address']
-        pin_code = request.form['pin_code']
-        price = float(request.form['price'])
-        new_total_spots = int(request.form['number_of_spots'])
-
-        # Count currently occupied spots
-        occupied_count = ParkingSpot.query.filter_by(parking_id=parking_id, status='O').count()
-
-        if new_total_spots < occupied_count:
-            flash(f"Cannot set total spots less than currently occupied ({occupied_count}).", "danger")
-            return render_template('edit_parking.html', parking=parking, occupied_count=occupied_count)
-
-        # Update parking fields
-        parking.prime_location_name = prime_location_name
-        parking.address = address
-        parking.pin_code = pin_code
-        parking.price = price
-
-        current_total_spots = parking.number_of_spots
-
-        if new_total_spots < current_total_spots:
-            # Check if any extra spots (beyond new_total_spots) are occupied
-            extra_spots = ParkingSpot.query.filter(
-                ParkingSpot.parking_id == parking_id,
-                ParkingSpot.spot_number > new_total_spots
-            ).all()
-
-            if any(spot.status == 'O' for spot in extra_spots):
-                flash("Cannot reduce number of spots: some of the extra spots are occupied.", "danger")
-                return render_template('edit_parking.html', parking=parking, occupied_count=occupied_count)
-
-            # Delete all extra spots
-            for spot in extra_spots:
-                db.session.delete(spot)
-
-        elif new_total_spots > current_total_spots:
-            # Add new spots
-            for spot_num in range(current_total_spots + 1, new_total_spots + 1):
-                new_spot = ParkingSpot(
-                    parking_id=parking.id,
-                    spot_number=spot_num,
-                    status='A'
-                )
-                db.session.add(new_spot)
-            flash(f"{new_total_spots - current_total_spots} new spot(s) added successfully.", "success")
-        else:
-            flash("Parking lot updated successfully.", "success")
-
-        parking.number_of_spots = new_total_spots
-        db.session.commit()
-
-        return redirect(url_for('parking'))
-
-    # GET request
-    occupied_count = ParkingSpot.query.filter_by(parking_id=parking_id, status='O').count()
-    return render_template('edit_parking.html', parking=parking, occupied_count=occupied_count)
-
+    return render_template('booking.html', spot_id=parking_id, user_id=user_id, parking=parking)
 
 @app.route('/delete_parking/<int:parking_id>', methods=['POST'])
 def delete_parking(parking_id):
@@ -304,40 +261,52 @@ def delete_parking(parking_id):
     if parking.spots:
         for spot in parking.spots:
             if spot.status == 'O':
-                flash('Cannot delete a parking lot with active bookings.' , 'danger')
+                flash('Cannot delete a parking lot with active bookings.', 'error')
                 return redirect(url_for('parking'))
-            
-    db.session.delete(spot)
+            db.session.delete(spot)
     db.session.delete(parking)
     db.session.commit()
+    flash("Parking deleted successfully.", "success")
     return redirect(url_for('parking'))
 
 @app.route('/history', methods=['GET', 'POST'])
 def history():
     if 'username' not in session:
         return redirect(url_for('login'))
-    all_bookings = Booking.query.filter_by(user_id=session['user_id']).all()
-    recent_bookings = [b for b in all_bookings if b.status == 'O']
-    past_bookings = [b for b in all_bookings if b.status != 'O']
-    return render_template('booking_history.html', recent_bookings=recent_bookings, past_bookings=past_bookings)    
-  
-   
 
-@app.route('/delete_spot/<int:spot_id>')
+    all_bookings = Booking.query.filter_by(user_id=session['user_id']).all()
+
+    # Fix: lowercase status comparison
+    recent_bookings = [b for b in all_bookings if b.status.lower().strip() == 'o']
+    past_bookings = [b for b in all_bookings if b.status.lower().strip() != 'o']
+
+    return render_template('booking_history.html',
+                           recent_bookings=recent_bookings,
+                           past_bookings=past_bookings)
+
+
+
+
+@app.route('/delete_spot/<int:spot_id>', methods=['GET', 'POST'])
 def delete_spot(spot_id):
     if 'username' not in session:
         return redirect(url_for('login'))
     spot = ParkingSpot.query.get_or_404(spot_id)
-
-    # Prevent deletion if spot is occupied
     if spot.status == 'O':
-        flash('Cannot delete spot: it is currently occupied.', 'danger')
-        return redirect(url_for('parking'))  # or wherever your admin dashboard is
-
+        flash('Cannot delete a spot with active bookings.', 'error')
+        return redirect(url_for('parking'))
+    parking = spot.parking  # get related parking lot
     db.session.delete(spot)
     db.session.commit()
-    flash(f'Spot {spot.spot_number} deleted successfully.', 'success')
+
+    # Update the total spots count after deleting the spot
+    parking.number_of_spots = ParkingSpot.query.filter_by(parking_id=parking.id).count()
+    db.session.commit()
+
+    flash("Spot deleted successfully.", "success")
     return redirect(url_for('parking'))
+
+
 
 
 @app.route('/release/<int:booking_id>', methods=['GET', 'POST'])
@@ -347,8 +316,8 @@ def release(booking_id):
 
     booking = Booking.query.get_or_404(booking_id)
 
-    # Safely check if it's not already released
-    if booking.status != 'O' or booking.end_time.year != 1970:
+    # Check if already released
+    if booking.status != 'O' or booking.end_time is not None:
         flash('This spot has already been released.', 'warning')
         return redirect(url_for('history'))
 
@@ -360,7 +329,7 @@ def release(booking_id):
     booking.spot.status = 'A'  # mark spot as available again
 
     db.session.commit()
-    flash('Parking spot released successfully!', 'success')
+    flash('Parking spot is released!', 'success')
     return redirect(url_for('history'))
 
 @app.route('/admin_user', methods=['GET', 'POST'])
@@ -383,24 +352,29 @@ def summary():
 
     total_revenue = 0
 
+    # Calculate spots and revenue, build data lists for charts
     for lot in lots:
+        total = ParkingSpot.query.filter_by(parking_id=lot.id).count()
         occupied = ParkingSpot.query.filter_by(parking_id=lot.id, status='O').count()
-        total = lot.number_of_spots
         available = total - occupied
 
+        # Add attributes for the template
+        lot.total_spots = total
+        lot.occupied_spots = occupied
+        lot.available_spots = available
+
+        # Append data for charts
         lot_names.append(lot.prime_location_name)
-        occupied_counts.append(occupied)
         available_counts.append(available)
+        occupied_counts.append(occupied)
 
         revenue = occupied * lot.price
         revenue_by_lot.append(revenue)
         total_revenue += revenue
 
         print(f"Revenue from {lot.prime_location_name}: ₹{revenue:.2f}")
-        
 
-
-    # Bar chart
+    # Create bar chart (Available vs Occupied spots)
     plt.figure(figsize=(10, 6))
     plt.bar(x=lot_names, height=available_counts, color='green', label='Available Spots')
     plt.bar(x=lot_names, height=occupied_counts, color='red', label='Occupied Spots', bottom=available_counts)
@@ -409,13 +383,12 @@ def summary():
     plt.title('Available vs Occupied Parking Spots by Parking Lot')
     plt.legend()
     plt.tight_layout()
+
     bar_chart_path = os.path.join(app.config['CHART_FOLDER'], 'bar_chart.png')
     plt.savefig(bar_chart_path)
     plt.close()
-    
 
-    
-    # Pie chart: Revenue Share from Each Parking Lot (only show lots with non-zero revenue)
+    # Create pie chart for revenue (only for lots with revenue > 0)
     non_zero_lots = [(name, rev) for name, rev in zip(lot_names, revenue_by_lot) if rev > 0]
 
     if non_zero_lots:
@@ -427,7 +400,6 @@ def summary():
             labels=filtered_names,
             autopct=lambda p: f'{p:.1f}%\n₹{p * sum(filtered_revenue) / 100:.0f}',
             startangle=140,
-            
         )
         plt.title(f'Revenue Contribution by Parking Lot\nTotal Revenue: ₹{total_revenue}', fontsize=14)
         plt.tight_layout()
@@ -438,14 +410,21 @@ def summary():
     else:
         pie_chart_path = None
 
-
     bar_chart_url = url_for('static', filename='charts/bar_chart.png')
-    pie_chart_url = url_for('static', filename='charts/pie_chart.png')
+    pie_chart_url = url_for('static', filename='charts/pie_chart.png') if pie_chart_path else None
 
     print("Bar chart saved:", os.path.exists(bar_chart_path))
-    print("Pie chart saved:", os.path.exists(pie_chart_path))
+    if pie_chart_path:
+        print("Pie chart saved:", os.path.exists(pie_chart_path))
+    else:
+        print("Pie chart not created.")
 
-    return render_template('summary.html', bar_chart_url=bar_chart_url, pie_chart_url=pie_chart_url, lots=lots)
+    return render_template(
+        'summary.html',
+        bar_chart_url=bar_chart_url,
+        pie_chart_url=pie_chart_url,
+        lots=lots
+    )
 
 
 @app.route('/user_summary', methods=['GET'])
@@ -473,9 +452,14 @@ def user_summary():
 
         for spot in lot.spots:
             for booking in spot.bookings:
-                if booking.user_id == user.id:
+                if (
+                    booking.user_id == user.id and 
+                    booking.status and 
+                    booking.status.lower().strip() == 'o'
+                ):
                     user_occupied += 1
-                    break  # count each spot only once per user
+                    break  # count only one active booking per spot
+
 
         other_spots = total_spots_in_lot - user_occupied
 
@@ -487,8 +471,11 @@ def user_summary():
 
     x = range(len(lot_names))
 
-    plt.bar(x, other_spots_counts, color='#198754', label='Available or Occupied by Others')
-    plt.bar(x, user_occupied_counts, color='#dc3545', label='Your Occupied Spots', bottom=other_spots_counts)
+
+
+    plt.bar(x, user_occupied_counts, color='#dc3545', label='Your Occupied Spots')
+    plt.bar(x, other_spots_counts, color='#198754', label='Available or Occupied by Others', bottom=user_occupied_counts)
+
 
     plt.xticks(x, lot_names, rotation=0, ha='center', fontsize=14)
     plt.ylabel('Number of Spots', fontsize=16)
@@ -507,8 +494,6 @@ def user_summary():
     chart_url = url_for('static', filename='charts/user_parking_bar_chart.png')
 
     return render_template('user_summary.html', user_parking_bar_chart_url=chart_url)
-
-
 
 
 @app.route('/logout')
@@ -546,5 +531,5 @@ def search():
     return render_template('parking.html', parkings=parkings, available_counts=available_counts, query=query, no_results=no_results)
 
 if __name__ == '__main__':
-    app.run(debug=True)  
+    app.run(debug=True)
 

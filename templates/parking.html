@@ -107,7 +107,7 @@
                     btn-success
                   {% endif %}" 
                 data-bs-toggle="modal" 
-                data-bs-target="#spotModal{{ number }}" 
+                data-bs-target="#spotModal{{ parking.id }}_{{ number }}"
                 title="View Spot {{ number }}">
                 <span>{{ number }}</span>
               </button>
@@ -136,7 +136,7 @@
 <!-- Spot Modals -->
 {% for parking in parkings %}
   {% for spot in parking.spots %}
-  <div class="modal fade" id="spotModal{{ spot.id }}" tabindex="-1" aria-labelledby="spotModalLabel{{ spot.id }}" aria-hidden="true">
+  <div class="modal fade" id="spotModal{{ parking.id }}_{{ spot.spot_number }}" tabindex="-1" aria-labelledby="spotModalLabel{{ spot.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
