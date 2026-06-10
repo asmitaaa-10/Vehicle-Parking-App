@@ -1,6 +1,6 @@
 # 🅿️ Vehicle Parking App
 
-A full-stack web application that allows users to search, reserve, and manage parking spaces in real time. Administrators get a dedicated dashboard to manage parking facilities, track spot occupancy, handle user accounts and evaluate revenue trends through dynamic charts.
+A full-stack web application that allows users to search, reserve, and manage parking spaces in real time. Administrators get a dedicated dashboard to manage parking facilities, track spot occupancy, handle user accounts, and evaluate revenue trends through dynamic charts.
 
 ---
 
@@ -14,7 +14,7 @@ A full-stack web application that allows users to search, reserve, and manage pa
 - **Usage summary** — visual chart showing your occupied spots vs others across all lots
 
 ### Admin side
-- **Facility management** — add, edit and delete parking lots with configurable spot counts and pricing
+- **Facility management** — add, edit, and delete parking lots with configurable spot counts and pricing
 - **Live occupancy tracking** — monitor available and occupied spots across all facilities
 - **User management** — view all registered users
 - **Revenue & analytics** — stacked bar chart (available vs occupied) and pie chart showing revenue contribution by parking lot
@@ -23,36 +23,37 @@ A full-stack web application that allows users to search, reserve, and manage pa
 
 ## Tech Stack
 
-| Layer       | Technology                        |
-|-------------|-----------------------------------|
-| Backend     | Python, Flask                     |
-| Database    | SQLite (via Flask-SQLAlchemy)      |
-| Auth        | Flask sessions, Werkzeug password hashing |
-| Charts      | Matplotlib (server-side rendered) |
-| Frontend    | HTML, CSS, Jinja2 templates       |
+| Layer    | Technology                             |
+|----------|----------------------------------------|
+| Backend  | Python, Flask                          |
+| Database | SQLite (via Flask-SQLAlchemy)          |
+| Auth     | Flask sessions, Werkzeug password hashing |
+| Charts   | Matplotlib (server-side rendered)      |
+| Frontend | HTML, CSS, Jinja2 templates            |
 
 ---
 
 ## Data Models
 
-| Model        | Description                                      |
-|--------------|--------------------------------------------------|
-| `User`       | Registered users including the admin account     |
-| `Parking`    | Parking lots with location, price, and spot count |
-| `ParkingSpot`| Individual spots within a lot (Available / Occupied) |
-| `Booking`    | Reservation records linking users, spots, and billing |
+| Model         | Description                                           |
+|---------------|-------------------------------------------------------|
+| `User`        | Registered users including the admin account          |
+| `Parking`     | Parking lots with location, price, and spot count     |
+| `ParkingSpot` | Individual spots within a lot (Available / Occupied)  |
+| `Booking`     | Reservation records linking users, spots, and billing |
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
+
 - Python 3.8+
 - pip
 
 ### Installation
 
-
+```bash
 # Install dependencies
 pip install flask flask-sqlalchemy werkzeug matplotlib
 
@@ -63,6 +64,7 @@ python app.py
 The app will be available at `http://localhost:5000`
 
 ### Default admin credentials
+
 ```
 Username: admin
 Password: app123
@@ -99,7 +101,5 @@ vehicle-parking-app/
 
 ## Academic Note
 
-Originally developed as part of the **IIT Madras — Modern Application Development 1 (MAD 1)** project.  
+Originally developed as part of the **IIT Madras — Modern Application Development 1 (MAD 1)** course.  
 Forked and maintained here for portfolio purposes and continued development.
-
----
